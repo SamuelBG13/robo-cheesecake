@@ -12,22 +12,22 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-######################################################################################################
+#########
 
 #%%
 def GenerateToyData(): # Generates first a times vector
-    ####################################
+    ##
     def GenerateTimesVector(rate=100, maxtime=3): #Generates a vector of times. Rate is data/sec
         maxtime=maxtime+npr.uniform (-0.5,0.5) # Solutions vary uniformingly around the input value, 3 seconds in this case
         stampnum=np.round(maxtime*rate)  #stampnum is the number of timestamps at the demonstrations
         increase=maxtime/stampnum
         Timevec=np.arange(0,stop=stampnum/rate, step=increase)
         return stampnum, Timevec
-    ####################################       
+    ##
     def GenerateAngles(Timevec): # Creates joint space timestamps based on a time vector 
         baselineth=np.array([0,0,0,-np.pi/2,0,np.pi/2, 0]) # A baseline for generating the thetas.
         q=np.array([])
-        variation= npr.normal(0, 0.05 ,7) #The whole distribution shifts with gaussian noise
+        variation= npr.normal(0, 0.1 ,7) #The whole distribution shifts with gaussian noise
         for i, timestamp in enumerate(Timevec):
             anglesstamp=baselineth+variation+(((1+timestamp)**3)/80) #Gets angles numbers that increase with time
             if i==0:
@@ -35,7 +35,7 @@ def GenerateToyData(): # Generates first a times vector
             else:
                 q=np.vstack((q, anglesstamp))
         return q
-    ####################################
+    ##
         
     N=3 #Number of demonstrations
     columns=['Times', 'q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6']
@@ -54,25 +54,29 @@ def GenerateToyData(): # Generates first a times vector
         
 
     return df
+##
 
-####################################df=GenerateToyData()
-Qlist=['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'] #list of q strings 
+def GeneratePlot(df):
+    Qlist=['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'] #list of q strings 
+    plt.close("all") 
+    plt.figure() # The generated data for each joint
 
-fig=plt.figure() # The generated data for each joint
-for index, row in df.iterrows():
-    for q in range(7):
-        plt.subplot(1,7,q+1)
-        
-        plt.plot(row["Times"], row[Qlist[q]])
-        plt.title(Qlist[q])
-        plt.ylim(-np.pi,np.pi)
-        plt.suptitle('Toy demonstrated data')
-        
-######################################################################################################
 
+    for index, row in df.iterrows():
+        for q in range(7):
+            plt.subplot(1,7,q+1)
+            
+            plt.plot(row["Times"], row[Qlist[q]])
+            plt.title(Qlist[q])
+            plt.ylim(-np.pi,np.pi)
+            plt.suptitle('Toy demonstrated data')
+            
+            
+##
+df=GenerateToyData()
+params = {'D' : 7, 'K' : 15, 'N' : df.shape[0]}
+GeneratePlot(df)
     
-    
-
 
    
 #%%
@@ -84,14 +88,18 @@ for index, row in df.iterrows():
 # The constructor method requires two inputs:
 # - A string Identifier which roughly describes the task in hand
 # - A dataframe TrainingData which contains all the examples for the robot. 
+# - A dictionary containing parameters: DoF number, number of basis functions, number of demonstrations  → (D,K,N)
 # 
 # The dataframe should include one row for each demonstration, which should have: 
 # - A NumPy vector of sampling times.
 # - One Numpy vector containing the time stamps for each joint 
 
+
+
 class ProMP:
-    def __init__(self, Identifier=None,  TrainingData=None):
-        self.identifier 
+    def __init__(self, identifier=None,  TrainingData=None):
+        self.identifier = identifier
+
 
     
     
