@@ -97,9 +97,48 @@ GeneratePlot(df)
 
 
 class ProMP:
-    def __init__(self, identifier=None,  TrainingData=None):
+    def __init__(self, identifier=None,  TrainingData=None, params=None):
         self.identifier = identifier
+        self.D=params['D'] #DoF
+        self.K=params['K'] #Basis Functions
+        self.N=params['N'] #Number of Demonstrations currently attached. 
+        self.TrainingData=TrainingData
+        
 
+        
 
+class robotoolbox: #several tools that come in handy for other scripts
+    @staticmethod
+    def GBasis(z,c,h): 
+        """"Returns a gaussian basis"""
+        
+        return np.exp(-((z-c)**2)/(2*h))
+    
+        @staticmethod
+    def PBasis(z,o): 
+        """"Returns a polynomial basis of order o"""
+        
+        return z**o
     
     
+    @staticmethod
+    def why():
+        whyv=npr.randint(1,5)
+        if whyv==1:
+            print("Because Claudia was too lazy to program it")
+        if whyv==2:
+            print("Because Sevin is busy making delicious baklavas")
+        if whyv==3:
+            print("Because Samuel went for a coffee two hours ago and hasn't returned")
+        if whyv==4:
+            print("Because they didn't order pizza for us")
+    
+   
+    @staticmethod
+    def IAmHungry():
+        print('We were too lazy to hard-code a better asscii art cake. ')
+        print("        iiiiiiiiiii \n       |___________| \n     __|___________|_")
+    #Cake and more from: https://asciiart.website/index.php?art=events/birthday
+        
+Blob=ProMP(identifier='Blob', TrainingData=df, params=params)
+  
