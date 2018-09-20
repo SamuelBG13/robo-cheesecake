@@ -6,13 +6,13 @@ engine.py:
     These papers are:
         
         
-        1. Using Probabilistic Movement Primitives in Robotics 
+        [1]. Using Probabilistic Movement Primitives in Robotics 
         By Paraschos, Daniel, Peters and Neumann 
         https://www.ias.informatik.tu-darmstadt.de/uploads/Team/AlexandrosParaschos/promps_auro.pdf
         
         and
         
-        2. Adaptation and Robust Learning of Probabilistic Movement Primitives
+        [2]. Adaptation and Robust Learning of Probabilistic Movement Primitives
         By Gomez-Gonzalez, Neumann, Schelkopf and Peters
         https://arxiv.org/pdf/1808.10648.pdf
         
@@ -55,9 +55,10 @@ class ProMP:
         self.N=params['N'] #Number of Demonstrations currently attached. 
         self.TrainingData=TrainingData
         self.PhaseClipping() #At start adds the phase vectors
-        self.w=np.zeros(self.K*self.D ) #W is matrix with K rows and D columns. 
-        self.BasisMatrix(0.5)
-        self.PlotBasisFunctions()
+        self.meanw=np.zeros(self.K*self.D ) #W is vector of dimension K*D. We initialize it here. 
+        self.W=pd.DataFrame(columns=['W']) #This dataframe stores the already-trained w vectors.
+        self.examplestrained=0 # This accounts to the number of rows of this dataframe
+
     
     def PhaseClipping(self):
         """Adds phase vectors to the the training dataframe. 
@@ -82,7 +83,7 @@ class ProMP:
         
         K=self.K
         BaVe=np.zeros(K)
-        h=0.01*1/(K-1) # the width of the basis functions is selected to consistently divide the entire phase interval
+        h=0.1*1/(K-1) # the width of the basis functions is selected to consistently divide the entire phase interval
         Interval=[-2*h, 1+2*h] #The interval between the first and the last basis functions.
         dist_int=(Interval[1]+abs(Interval[0]))/(K-2) #Effective distance between each basis
         c=Interval[0]
@@ -91,6 +92,7 @@ class ProMP:
             c=c+dist_int
         BaVe[K-1]=z #Polynomial, first order
         return BaVe
+        #return BaVe/np.sum(BaVe) # normalization of the basis functions is suggested in [1]
 
     def BasisMatrix(self,z):
         """Generates the basis matrics for the joints at the phase level z.
@@ -109,7 +111,7 @@ class ProMP:
             BaMa[d,index_block:index_block+K]=self.BasisVector(z)#Computes the basis vector, which is assumed to be the same for each joint
             index_block=index_block+K
         
-        print(BaMa)
+        return BaMa
         
     def PlotBasisFunctions(self):
         """Simply plots the basis functions currently used"""
@@ -121,7 +123,19 @@ class ProMP:
                 plt.plot(Q,basis, 'b*')
                 plt.title('Basis Functions')
        
-         
+    def RegularizedLeastSquares(self, l=1e-12):
+        
+        """This uses ther regularized least squares method to train the ProMP.
+        It is described on [1]. 
+        
+        l is the regularization parameter.
+        """
+        
+        df=self.TrainingData
+        for index, row in df.iterrows():
+            pass
+
+        pass
     
 
         
@@ -143,7 +157,7 @@ class robotoolbox: #several tools that come in handy for other scripts
     @staticmethod
     def why(): 
         """Wait, but why?"""
-        whyv=npr.randint(1,5)
+        whyv=npr.randint(1,11)
         if whyv==1:
             print("Because Claudia was too lazy to program it")
         if whyv==2:
@@ -152,6 +166,18 @@ class robotoolbox: #several tools that come in handy for other scripts
             print("Because Samuel went for a coffee two hours ago and hasn't returned")
         if whyv==4:
             print("Because they didn't order pizza for us")
+        if whyv==5:
+            print("Because Claudia  was watching Otto e Mezzo and she forgot she left the robot exploring alone")
+        if whyv==6:
+            print("Because Sevin forgot to import the weights from Caffe in TensorFlow")
+        if whyv==7:
+            print("Because Samuel's brain was shut down and the re-boots are not working")
+        if whyv==8:
+            print("I don't know, why do you ask me?")
+        if whyv==9:
+            print("El holandéeees voladoooor")
+        if whyv==10:
+            print("Because you failed to give me the answer for the question of life, the universe, and everything else")
     
     @staticmethod
     def GenerateDemoPlot(df, xvariable="Times"):
@@ -170,8 +196,7 @@ class robotoolbox: #several tools that come in handy for other scripts
                 plt.title(Qlist[q])
                 plt.ylim(-np.pi,np.pi)
                 plt.suptitle('Toy demonstrated data')
-                
-                
+          
    
     @staticmethod
     def IAmHungry():
@@ -227,9 +252,10 @@ class robotoolbox: #several tools that come in handy for other scripts
     
     
 N=3
-params = {'D' : 7, 'K' : 4, 'N' : N}
+params = {'D' : 7, 'K' : 8, 'N' : N}
        
 Blob=ProMP(identifier='Blob', TrainingData=robotoolbox.GenerateToyData(N=N), params=params)
 robotoolbox.GenerateDemoPlot(Blob.TrainingData, xvariable='Phases')
-
+#Blob.PlotBasisFunctions()
+Blob.RegularizedLeastSquares() #Choice for l from [1]
 
