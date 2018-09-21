@@ -200,7 +200,38 @@ class ProMP:
         plt.suptitle('Mean predictions')
         return Y
     
-    
+    def MeanAndStdPrediction(self):
+        Z=np.arange(0,1,0.05)
+        Qlist=['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'] #list of q strings 
+        Y=np.array([])
+        for z in Z:
+            if z==0:
+                Y=np.dot(self.BasisMatrix(z),self.esitmate_m)
+            else:
+                Y=np.vstack((Y,np.dot(self.BasisMatrix(z),self.esitmate_m)))
+        Ylower=np.array([])
+        for z in Z:
+            if z==0:
+                Ylower=np.dot(self.BasisMatrix(z),self.esitmate_m-self.estimate_sd)
+            else:
+                Ylower=np.vstack((Ylower,np.dot(self.BasisMatrix(z),self.esitmate_m-self.estimate_sd)))
+        Yupper=np.array([])
+        for z in Z:
+            if z==0:
+                Yupper=np.dot(self.BasisMatrix(z),self.esitmate_m+self.estimate_sd)
+            else:
+                Yupper=np.vstack((Yupper,np.dot(self.BasisMatrix(z),self.esitmate_m+self.estimate_sd)))
+  
+        plt.figure()
+        for idq, q in enumerate(Qlist):
+            plt.subplot(1,7,idq+1)
+
+            plt.fill_between(Z, Yupper[:,idq], Ylower[:,idq])
+            plt.plot(Z,Y[:,idq],'k',LineWidth=1)
+            plt.title(Qlist[idq])
+            plt.ylim(-np.pi,np.pi)
+        plt.suptitle('Mean predictions')
+        return Y    
 
 
         
@@ -317,10 +348,10 @@ class robotoolbox: #several tools that come in handy for other scripts
     
     
 N=10
-params = {'D' : 7, 'K' : 8, 'N' : N}
+params = {'D' : 7, 'K' : 6, 'N' : N}
        
 Blob=ProMP(identifier='Blob', TrainingData=robotoolbox.GenerateToyData(N=N), params=params)
 robotoolbox.GenerateDemoPlot(Blob.TrainingData, xvariable='Phases')
 #Blob.PlotBasisFunctions()
 Blob.RegularizedLeastSquares() #Choice for l from [1]
-Blob.MeanPrediction()
+Blob.MeanAndStdPrediction()
