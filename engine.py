@@ -24,6 +24,8 @@ engine.py:
 
 import numpy as np 
 import numpy.random as npr
+import numpy.linalg  as npl
+
 import pandas as pd
 import matplotlib.pyplot as plt          
 plt.close("all") 
@@ -45,7 +47,7 @@ plt.close("all")
 # - A NumPy vector of sampling times.
 # - One Numpy vector containing the time stamps for each joint 
 
-"""
+"""  
 
 class ProMP:
     def __init__(self, identifier=None,  TrainingData=None, params=None):
@@ -58,7 +60,8 @@ class ProMP:
         self.meanw=np.zeros(self.K*self.D ) #W is vector of dimension K*D. We initialize it here. 
         self.W=pd.DataFrame(columns=['W']) #This dataframe stores the already-trained w vectors.
         self.examplestrained=0 # This accounts to the number of rows of this dataframe
-
+        self.esitmate_m=None
+        self.estimate_sd=None
     
     def PhaseClipping(self):
         """Adds phase vectors to the the training dataframe. 
@@ -91,12 +94,14 @@ class ProMP:
             BaVe[k]=robotoolbox.GBasis(z,c,h)
             c=c+dist_int
         BaVe[K-1]=z #Polynomial, first order
-        return BaVe
-        #return BaVe/np.sum(BaVe) # normalization of the basis functions is suggested in [1]
+        #return BaVe
+        return BaVe/np.sum(BaVe) # normalization of the basis functions is suggested in [1]
+        
 
+        
     def BasisMatrix(self,z):
         """Generates the basis matrics for the joints at the phase level z.
-        This DxKD matrix is evaluated at a certain phase z. 
+        This DxKD matrix is evaluated at a certain phase Z=z (only one phase point!). 
         This matrix is esentially a block matrix that stacks in the diagonal
         the basis vectors for each degree of fredom.
         The basis vectors are, for simplicity, the same for each DoF and will be
@@ -113,6 +118,29 @@ class ProMP:
         
         return BaMa
         
+    def BigFuckingMatrix(self, demonstration):
+        """Generates the basis matrics 'PSI' for all the joints over all the phase stamps.
+        This is a DZxKD, Z being the number of phase stamps in the demonstration.. 
+        This matrix is esentially a block matrix that stacks in the diagonal
+        The parameter 'demonstration' is a series, taken as a row from the training data
+        dataframe."""
+        Z=demonstration["Phases"].shape[0]
+        D=self.D
+        K=self.K
+        BFM=np.zeros((Z*D,K*D))
+        index_phase=0 #On each row within the same DoF, the Basis Vector should start on a different index. The first one starts at 0
+        index_block=0 #On each DoF of the basis matrix, the Basis Vector should start on a different index. The first one starts at 0
+
+
+        for d in range(D):
+            for idz, z in enumerate(demonstration["Phases"]):
+                BFM[index_phase,index_block:index_block+K]=self.BasisVector(z)#Computes the basis vector, which is assumed to be the same for each joint
+                index_phase=index_phase+1
+            index_block=index_block+K
+        
+        return BFM
+        
+                
     def PlotBasisFunctions(self):
         """Simply plots the basis functions currently used"""
         plt.figure()
@@ -130,13 +158,50 @@ class ProMP:
         
         l is the regularization parameter.
         """
+        D=self.D
+        K=self.K
         
+        Qlist=['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'] #list of q strings 
+
         df=self.TrainingData
         for index, row in df.iterrows():
-            pass
-
-        pass
+            PSI=self.BigFuckingMatrix(row)
+            Y=row[Qlist[0]]
+            for q in range (1,D):
+                Y=np.hstack((Y,row[Qlist[q]]))
+            ######
+            RegMat=l*np.eye(K*D)
+            
+            factor1=npl.inv((np.matmul(PSI.T,PSI)+RegMat))
+            factor2=np.dot(PSI.T,Y)
+            w=np.dot(factor1,factor2)
+            self.examplestrained=self.examplestrained+1
+            self.W=self.W.append({'W': w}, ignore_index=True)
+            self.esitmate_m=np.mean(self.W.values)
+            self.estimate_sd=np.std(self.W.values)
+            
+            
+    def MeanPrediction(self):
+        Z=np.arange(0,1,0.05)
+        Qlist=['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'] #list of q strings 
+        Y=np.array([])
+        for z in Z:
+            if z==0:
+                Y=np.dot(self.BasisMatrix(z),self.esitmate_m)
+            else:
+                Y=np.vstack((Y,np.dot(self.BasisMatrix(z),self.esitmate_m)))
+  
+        plt.figure()
+        for idq, q in enumerate(Qlist):
+            plt.subplot(1,7,idq+1)
+            plt.plot(Z,Y[:,idq])
+            plt.title(Qlist[idq])
+            plt.ylim(-np.pi,np.pi)
+        plt.suptitle('Mean predictions')
+        return Y
     
+    
+
 
         
 
@@ -236,7 +301,7 @@ class robotoolbox: #several tools that come in handy for other scripts
         columns=['Times', 'q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6']
         df = pd.DataFrame(columns=columns) #Empty dataframe
         for n in range(N): #Creates N demonstrations, including the times vector and the angles  
-            stampnum, Timevec=GenerateTimesVector()
+            stampnum, Timevec=GenerateTimesVector(rate=50)
             q=GenerateAngles(Timevec)
             df=df.append(pd.DataFrame(data={'Times': [Timevec], \
                                             'q0': [q[:,0]], \
@@ -251,11 +316,11 @@ class robotoolbox: #several tools that come in handy for other scripts
         return df
     
     
-N=3
+N=10
 params = {'D' : 7, 'K' : 8, 'N' : N}
        
 Blob=ProMP(identifier='Blob', TrainingData=robotoolbox.GenerateToyData(N=N), params=params)
 robotoolbox.GenerateDemoPlot(Blob.TrainingData, xvariable='Phases')
 #Blob.PlotBasisFunctions()
 Blob.RegularizedLeastSquares() #Choice for l from [1]
-
+Blob.MeanPrediction()
