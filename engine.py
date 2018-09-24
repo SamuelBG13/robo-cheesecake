@@ -162,7 +162,7 @@ class ProMP:
         K=self.K
         
         Qlist=['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'] #list of q strings 
-
+        wmatrix=np.array([])
         df=self.TrainingData
         for index, row in df.iterrows():
             PSI=self.BigFuckingMatrix(row)
@@ -176,9 +176,22 @@ class ProMP:
             factor2=np.dot(PSI.T,Y)
             w=np.dot(factor1,factor2)
             self.examplestrained=self.examplestrained+1
+            
+            # The exemplified w's are stored as a dataframe. But first, they are
+            # stacked on a matrix such that we can compute easily the covariance. 
+            if index==0:
+                wmatrix=w
+            else:
+                wmatrix=np.vstack((wmatrix,w)) 
+                
             self.W=self.W.append({'W': w}, ignore_index=True)
-            self.esitmate_m=np.mean(self.W.values)
-            self.estimate_sd=np.std(self.W.values)
+
+              
+        self.esitmate_m=np.mean(self.W.values)
+        self.estimate_sd=np.std(self.W.values)
+        self.estimate_sigma=np.cov(wmatrix.T)
+
+
             
             
     def MeanPrediction(self):
@@ -237,9 +250,6 @@ class ProMP:
             plt.ylim(-np.pi,np.pi)
         plt.suptitle('Mean + '+str(factor)+' std predictions')
         return Y    
-
-
-        
 
 class robotoolbox: #several tools that come in handy for other scripts
     @staticmethod
@@ -354,7 +364,7 @@ class robotoolbox: #several tools that come in handy for other scripts
     
     
 N=15
-params = {'D' : 7, 'K' : 6, 'N' : N}
+params = {'D' : 7, 'K' : 3, 'N' : N}
        
 Blob=ProMP(identifier='Blob', TrainingData=robotoolbox.GenerateToyData(N=N), params=params)
 robotoolbox.GenerateDemoPlot(Blob.TrainingData, xvariable='Phases')
