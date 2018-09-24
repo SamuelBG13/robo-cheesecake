@@ -182,6 +182,8 @@ class ProMP:
             
             
     def MeanPrediction(self):
+        ''' Predicts the mean trajectoy after training. Produces a plot of the mean
+        trajectory for each DoF. '''
         Z=np.arange(0,1,0.05)
         Qlist=['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'] #list of q strings 
         Y=np.array([])
@@ -200,7 +202,10 @@ class ProMP:
         plt.suptitle('Mean predictions')
         return Y
     
-    def MeanAndStdPrediction(self):
+    def MeanAndStdPrediction(self, factor=1):
+        ''' Predicts the mean trajectoy and std after training. 
+        Produces a plot of the mean +- 1 std trajectories for each DoF. 
+        The parameter factor multiplies the standard deviation'''
         Z=np.arange(0,1,0.05)
         Qlist=['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'] #list of q strings 
         Y=np.array([])
@@ -212,15 +217,15 @@ class ProMP:
         Ylower=np.array([])
         for z in Z:
             if z==0:
-                Ylower=np.dot(self.BasisMatrix(z),self.esitmate_m-self.estimate_sd)
+                Ylower=np.dot(self.BasisMatrix(z),self.esitmate_m-factor*self.estimate_sd)
             else:
-                Ylower=np.vstack((Ylower,np.dot(self.BasisMatrix(z),self.esitmate_m-self.estimate_sd)))
+                Ylower=np.vstack((Ylower,np.dot(self.BasisMatrix(z),self.esitmate_m-factor*self.estimate_sd)))
         Yupper=np.array([])
         for z in Z:
             if z==0:
-                Yupper=np.dot(self.BasisMatrix(z),self.esitmate_m+self.estimate_sd)
+                Yupper=np.dot(self.BasisMatrix(z),self.esitmate_m+factor*self.estimate_sd)
             else:
-                Yupper=np.vstack((Yupper,np.dot(self.BasisMatrix(z),self.esitmate_m+self.estimate_sd)))
+                Yupper=np.vstack((Yupper,np.dot(self.BasisMatrix(z),self.esitmate_m+factor*self.estimate_sd)))
   
         plt.figure()
         for idq, q in enumerate(Qlist):
@@ -230,7 +235,7 @@ class ProMP:
             plt.plot(Z,Y[:,idq],'k',LineWidth=1)
             plt.title(Qlist[idq])
             plt.ylim(-np.pi,np.pi)
-        plt.suptitle('Mean predictions')
+        plt.suptitle('Mean + '+str(factor)+' std predictions')
         return Y    
 
 
@@ -321,6 +326,7 @@ class robotoolbox: #several tools that come in handy for other scripts
             variation= npr.normal(0, 0.1 ,7) #The whole distribution shifts with gaussian noise
             for i, timestamp in enumerate(Timevec):
                 anglesstamp=baselineth+variation+(((1+timestamp)**3)/80) #Gets angles numbers that increase with time
+                anglesstamp= np.multiply(anglesstamp, np.array([-1,1,-1,1,-1,1,-1]))
                 if i==0:
                     q=anglesstamp
                 else:
@@ -347,11 +353,11 @@ class robotoolbox: #several tools that come in handy for other scripts
         return df
     
     
-N=10
+N=15
 params = {'D' : 7, 'K' : 6, 'N' : N}
        
 Blob=ProMP(identifier='Blob', TrainingData=robotoolbox.GenerateToyData(N=N), params=params)
 robotoolbox.GenerateDemoPlot(Blob.TrainingData, xvariable='Phases')
 #Blob.PlotBasisFunctions()
 Blob.RegularizedLeastSquares() #Choice for l from [1]
-Blob.MeanAndStdPrediction()
+Blob.MeanAndStdPrediction(2)
