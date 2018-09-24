@@ -16,6 +16,12 @@ engine.py:
         By Gomez-Gonzalez, Neumann, Schelkopf and Peters
         https://arxiv.org/pdf/1808.10648.pdf
         
+        Also there's input from
+        
+        [3]. Probabilistic Movement Primitives
+        By Paraschos, Daniel, Peters and Neumann
+        https://www.ias.informatik.tu-darmstadt.de/uploads/Publications/Paraschos_NIPS_2013a.pdf
+        
     Autors of the code: 
         Cheescake team @ Deep Learning and Robotics Challenge 2018
         
@@ -60,7 +66,7 @@ class ProMP:
         self.meanw=np.zeros(self.K*self.D ) #W is vector of dimension K*D. We initialize it here. 
         self.W=pd.DataFrame(columns=['W']) #This dataframe stores the already-trained w vectors.
         self.examplestrained=0 # This accounts to the number of rows of this dataframe
-        self.esitmate_m=None
+        self.estimate_m=None
         self.estimate_sd=None
     
     def PhaseClipping(self):
@@ -187,69 +193,169 @@ class ProMP:
             self.W=self.W.append({'W': w}, ignore_index=True)
 
               
-        self.esitmate_m=np.mean(self.W.values)
+        self.estimate_m=np.mean(self.W.values)
         self.estimate_sd=np.std(self.W.values)
         self.estimate_sigma=np.cov(wmatrix.T)
 
-
-            
-            
-    def MeanPrediction(self):
-        ''' Predicts the mean trajectoy after training. Produces a plot of the mean
-        trajectory for each DoF. '''
-        Z=np.arange(0,1,0.05)
-        Qlist=['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'] #list of q strings 
-        Y=np.array([])
-        for z in Z:
-            if z==0:
-                Y=np.dot(self.BasisMatrix(z),self.esitmate_m)
-            else:
-                Y=np.vstack((Y,np.dot(self.BasisMatrix(z),self.esitmate_m)))
-  
-        plt.figure()
-        for idq, q in enumerate(Qlist):
-            plt.subplot(1,7,idq+1)
-            plt.plot(Z,Y[:,idq])
-            plt.title(Qlist[idq])
-            plt.ylim(-np.pi,np.pi)
-        plt.suptitle('Mean predictions')
-        return Y
+        
+    def Condition_JointSpace(self,Qtarget, Ztarget):
+        
+        """IN CONSTRUCTION
+        FOR NOW IT IS ASSUMED THAT QTarget and Ztarget ARE
+        ONLY ONE VIA POINT"""
+        K=self.K
+        D=self.D
+        N=self.N
+        
+        
+        q=Qtarget[0]
+        z=Ztarget[0]
+        
+        
     
-    def MeanAndStdPrediction(self, factor=1):
+        Ey_des=0.001*np.eye(D) #Accuracy matrix
+        Ew=self.estimate_sigma
+        Muw=self.estimate_m
+        Psi=self.BasisMatrix(z).T  # In [1] this matrix is defined as a DxKD matrix. 
+        # However later it isregarded as KD*D. Therefore, the transpose is used. 
+        
+        #From [1]:
+        L=Ew.dot(Psi).dot(npl.inv(Ey_des+Psi.T.dot(Ew).dot(Psi)))
+        Muw_new=Muw+L.dot(q.T-Psi.T.dot(Muw))
+        self.ConditionedAndStdPredictionPlot(wconditioned=Muw_new, Qtarget=Qtarget, Ztarget=Ztarget, factor=2)
+        pass
+
+    
+#    def Condition_TaskSpace(self, viapoints):
+#        pass
+            
+            
+#    def GeneratePrediction(self, w=None,Qtarget=None, Ztarget=None ):
+#        ''' Predicts the mean trajectoy for a given w. Produces a plot of the mean
+#        trajectory for each DoF.
+#        
+#        In case no w is given, the mean from all the demonstrations is plotted'''
+#        if w is None: #I.e., if the user has not provided anyt¿
+#            w=self.estimate_m
+##            title='Mean predictions'
+##        else:
+##            title='Conditioned predictions'
+##        if Qtarget is not None and Ztarget is not None:
+##            PlotViaPoints=True
+##        else:
+##            PlotViaPoints=False
+#
+#                    
+#        Z=np.arange(0,1,0.001)
+#        Qlist=['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'] #list of q strings 
+#        Y=np.array([])
+#        for z in Z:
+#            if z==0:
+#                Y=np.dot(self.BasisMatrix(z),w)
+#            else:
+#                Y=np.vstack((Y,np.dot(self.BasisMatrix(z),w)))
+#  
+##        plt.figure()
+##        for idq, q in enumerate(Qlist):
+##            plt.subplot(1,7,idq+1)
+##            plt.plot(Z,Y[:,idq])
+##            plt.title(Qlist[idq])
+##            plt.ylim(-np.pi,np.pi)
+##            if PlotViaPoints:
+##                for idx, qtarg in enumerate(Qtarget):
+##                    plt.plot(Ztarget[idx], qtarg[idq],'k*')
+##        plt.suptitle('Conditioned predictions')
+##        
+#                
+#        return Y
+    
+    def MeanAndStdPredictionPlot(self, factor=1):
         ''' Predicts the mean trajectoy and std after training. 
-        Produces a plot of the mean +- 1 std trajectories for each DoF. 
+        Produces a plot of the mean +- factir std trajectories for each DoF. 
         The parameter factor multiplies the standard deviation'''
         Z=np.arange(0,1,0.05)
         Qlist=['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'] #list of q strings 
         Y=np.array([])
         for z in Z:
             if z==0:
-                Y=np.dot(self.BasisMatrix(z),self.esitmate_m)
+                Y=np.dot(self.BasisMatrix(z),self.estimate_m)
             else:
-                Y=np.vstack((Y,np.dot(self.BasisMatrix(z),self.esitmate_m)))
+                Y=np.vstack((Y,np.dot(self.BasisMatrix(z),self.estimate_m)))
         Ylower=np.array([])
         for z in Z:
             if z==0:
-                Ylower=np.dot(self.BasisMatrix(z),self.esitmate_m-factor*self.estimate_sd)
+                Ylower=np.dot(self.BasisMatrix(z),self.estimate_m-factor*self.estimate_sd)
             else:
-                Ylower=np.vstack((Ylower,np.dot(self.BasisMatrix(z),self.esitmate_m-factor*self.estimate_sd)))
+                Ylower=np.vstack((Ylower,np.dot(self.BasisMatrix(z),self.estimate_m-factor*self.estimate_sd)))
         Yupper=np.array([])
         for z in Z:
             if z==0:
-                Yupper=np.dot(self.BasisMatrix(z),self.esitmate_m+factor*self.estimate_sd)
+                Yupper=np.dot(self.BasisMatrix(z),self.estimate_m+factor*self.estimate_sd)
             else:
-                Yupper=np.vstack((Yupper,np.dot(self.BasisMatrix(z),self.esitmate_m+factor*self.estimate_sd)))
+                Yupper=np.vstack((Yupper,np.dot(self.BasisMatrix(z),self.estimate_m+factor*self.estimate_sd)))
   
         plt.figure()
         for idq, q in enumerate(Qlist):
             plt.subplot(1,7,idq+1)
 
-            plt.fill_between(Z, Yupper[:,idq], Ylower[:,idq])
+            plt.fill_between(Z, Yupper[:,idq], Ylower[:,idq], alpha=0.6)
             plt.plot(Z,Y[:,idq],'k',LineWidth=1)
             plt.title(Qlist[idq])
             plt.ylim(-np.pi,np.pi)
         plt.suptitle('Mean + '+str(factor)+' std predictions')
         return Y    
+    
+    def ConditionedAndStdPredictionPlot(self, wconditioned, factor=1, Qtarget=None, Ztarget=None):
+        ''' Produces a nice plot of a conditioned trajectory '''
+        if Qtarget is not None and Ztarget is not None:
+            PlotViaPoints=True
+        else:
+                
+            PlotViaPoints=False
+      
+        Z=np.arange(0,1,0.01)
+        Qlist=['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'] #list of q strings 
+        Y=np.array([])
+        Ycond=np.array([])
+
+        for z in Z:
+            if z==0:
+                Y=np.dot(self.BasisMatrix(z),self.estimate_m)
+                Ycond=np.dot(self.BasisMatrix(z),wconditioned)
+
+            else:
+                Y=np.vstack((Y,np.dot(self.BasisMatrix(z),self.estimate_m)))
+                Ycond=np.vstack((Ycond,np.dot(self.BasisMatrix(z),wconditioned)))
+
+        Ylower=np.array([])
+        for z in Z:
+            if z==0:
+                Ylower=np.dot(self.BasisMatrix(z),self.estimate_m-factor*self.estimate_sd)
+            else:
+                Ylower=np.vstack((Ylower,np.dot(self.BasisMatrix(z),self.estimate_m-factor*self.estimate_sd)))
+        Yupper=np.array([])
+        for z in Z:
+            if z==0:
+                Yupper=np.dot(self.BasisMatrix(z),self.estimate_m+factor*self.estimate_sd)
+            else:
+                Yupper=np.vstack((Yupper,np.dot(self.BasisMatrix(z),self.estimate_m+factor*self.estimate_sd)))
+  
+        plt.figure()
+        for idq, q in enumerate(Qlist):
+            plt.subplot(1,7,idq+1)
+            
+            plt.fill_between(Z, Yupper[:,idq], Ylower[:,idq], alpha=0.6)
+            plt.plot(Z,Y[:,idq],'k',LineWidth=1)
+            plt.plot(Z,Ycond[:,idq],'r',LineWidth=1)
+            plt.title(Qlist[idq])
+            
+            if PlotViaPoints:
+                for idx, qtarg in enumerate(Qtarget):
+                    plt.plot(Ztarget[idx], qtarg[idq],'r*')
+            plt.ylim(-np.pi,np.pi)
+        plt.suptitle('Mean + '+str(factor)+' std predictions - Conditioned trajectory')
+        return Y    
+    
 
 class robotoolbox: #several tools that come in handy for other scripts
     @staticmethod
@@ -335,7 +441,7 @@ class robotoolbox: #several tools that come in handy for other scripts
             q=np.array([])
             variation= npr.normal(0, 0.1 ,7) #The whole distribution shifts with gaussian noise
             for i, timestamp in enumerate(Timevec):
-                anglesstamp=baselineth+variation+(((1+timestamp)**3)/80) #Gets angles numbers that increase with time
+                anglesstamp=baselineth+timestamp*variation+(((1+timestamp)**3)/80) #Gets angles numbers that increase with time
                 anglesstamp= np.multiply(anglesstamp, np.array([-1,1,-1,1,-1,1,-1]))
                 if i==0:
                     q=anglesstamp
@@ -364,10 +470,12 @@ class robotoolbox: #several tools that come in handy for other scripts
     
     
 N=15
-params = {'D' : 7, 'K' : 3, 'N' : N}
+params = {'D' : 7, 'K' :  20, 'N' : N}
        
 Blob=ProMP(identifier='Blob', TrainingData=robotoolbox.GenerateToyData(N=N), params=params)
 robotoolbox.GenerateDemoPlot(Blob.TrainingData, xvariable='Phases')
 #Blob.PlotBasisFunctions()
 Blob.RegularizedLeastSquares() #Choice for l from [1]
-Blob.MeanAndStdPrediction(2)
+Ztarget=np.array([0.9])
+Qtarget=np.array([[-0.3,0.3,-1,-0.6,-1.1,2.8,-0.75]])
+Blob.Condition_JointSpace(Qtarget, Ztarget)
