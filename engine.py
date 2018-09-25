@@ -456,7 +456,7 @@ class robotoolbox: #several tools that come in handy for other scripts
         return df
     
     
-N=8
+N=8000
 params = {'D' : 7, 'K' :  8, 'N' : N}
        
 Blob=ProMP(identifier='Blob', TrainingData=robotoolbox.GenerateToyData(N=N), params=params)
