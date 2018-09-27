@@ -31,7 +31,7 @@ engine.py:
 import numpy as np 
 import numpy.random as npr
 import numpy.linalg  as npl
-
+import pickle as p 
 import pandas as pd
 import matplotlib.pyplot as plt          
 plt.close("all") 
@@ -87,19 +87,18 @@ class ProMP:
     
     def BasisVector(self, z):
         """Generates the K x 1 basis vector for the ProMP. 
-        We use K-1 gaussian basis functions and a first order polynomial,
-        as reported by Gomez-Gonzales et. al. to produce best results."""
+        We use K gaussian basis functions-"""
         
         K=self.K
         BaVe=np.zeros(K)
         h=0.1*1/(K-1) # the width of the basis functions is selected to consistently divide the entire phase interval
         Interval=[-2*h, 1+2*h] #The interval between the first and the last basis functions.
-        dist_int=(Interval[1]+abs(Interval[0]))/(K-2) #Effective distance between each basis
+        dist_int=(Interval[1]+abs(Interval[0]))/(K-1) #Effective distance between each basis
         c=Interval[0]
-        for k in range (K-1):
+        for k in range (K):
             BaVe[k]=robotoolbox.GBasis(z,c,h)
             c=c+dist_int
-        BaVe[K-1]=z #Polynomial, first order
+
         #return BaVe
         return BaVe/np.sum(BaVe) # normalization of the basis functions is suggested in [1]
         
@@ -254,6 +253,31 @@ class ProMP:
                
         return Z, Y
     
+
+    def GenerateDemoPlot(self, xvariable="Times", toy=False):
+    
+        """"Shows a plot of the demonstrations. Change xvariable for "Phases" in case
+        you want to plot q vs z instead of q vs t.
+        Boolean variable toy displays a label in the title of the plot"""
+        
+        df=self.TrainingData
+        Qlist=['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'] #list of q strings 
+        plt.figure() # The generated data for each joint
+    
+    
+        for index, row in df.iterrows():
+            for q in range(7):
+                plt.subplot(1,7,q+1)
+                
+                plt.plot(row[xvariable], row[Qlist[q]])
+                plt.title(Qlist[q])
+                plt.ylim(-np.pi,np.pi)
+            if toy:
+                plt.suptitle('Toy demonstrated data')
+            else:
+                plt.suptitle('Demonstrated data')
+          
+    
     def MeanAndStdPredictionPlot(self, factor=1):
         ''' Predicts the mean trajectoy and std after training, and produces
         a nice plotplot of the mean +- std trajectories for each DoF. 
@@ -383,25 +407,42 @@ class robotoolbox: #several tools that come in handy for other scripts
         if whyv==10:
             print("Because you failed to give me the answer for the question of life, the universe, and everything else")
     
-    @staticmethod
-    def GenerateDemoPlot(df, xvariable="Times"):
-        """"Shows a plot of the demonstrations. Change xvariable for "Phases" in case
-        you want to plot q vs z instead of q vs t."""
-        
-        Qlist=['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'] #list of q strings 
-        plt.figure() # The generated data for each joint
-    
-    
-        for index, row in df.iterrows():
-            for q in range(7):
-                plt.subplot(1,7,q+1)
-                
-                plt.plot(row[xvariable], row[Qlist[q]])
-                plt.title(Qlist[q])
-                plt.ylim(-np.pi,np.pi)
-                plt.suptitle('Toy demonstrated data')
-          
+
    
+    @staticmethod
+    
+    def PrepareData(filename):
+        """Loads the dataframe, which is in a pickle file, and puts it
+        on the necessary shape to get in the ProMP class
+        
+        These are necessary preprocessing step """
+        
+        columns=['Times', 'q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6']
+        df_generated = pd.DataFrame(columns=columns) #Empty dataframe
+        
+        df_origin = p.load(open(filename, 'rb'))
+        N=df_origin['demo'].max()+1 #+1 because we labelled a demo as "0"
+        for demo in range(N):
+            temp=df_origin[df_origin['demo']==demo]
+            timestamps=np.array(list(temp['timestamp_franka'].values))
+            timestamps=timestamps-timestamps[0]
+            q=np.array(list(temp['joint_pos'].values))
+            df_generated=df_generated.append(pd.DataFrame(data={'Times': [timestamps], \
+                                'q0': [q[:,0]], \
+                                'q1': [q[:,1]], \
+                                'q2': [q[:,2]], \
+                                'q3': [q[:,3]], \
+                                'q4': [q[:,4]], \
+                                'q5': [q[:,5]], \
+                                'q6': [q[:,6]]}),ignore_index=True)
+
+            
+        return df_generated, N
+    
+
+
+        
+    
     @staticmethod
     def IAmHungry():
         print('We were too lazy to hard-code a better asscii art cake. ')
@@ -456,13 +497,26 @@ class robotoolbox: #several tools that come in handy for other scripts
         return df
     
     
-N=8000
-params = {'D' : 7, 'K' :  8, 'N' : N}
-       
-Blob=ProMP(identifier='Blob', TrainingData=robotoolbox.GenerateToyData(N=N), params=params)
-robotoolbox.GenerateDemoPlot(Blob.TrainingData, xvariable='Phases')
-#Blob.PlotBasisFunctions()
-Blob.RegularizedLeastSquares() #Choice for l from [1]
-Ztarget=np.array([0.15,0.9])
-Qtarget=np.array([[0.08,-0.08,0.08,-1.7,0,1.75,0],[-0.3,0.3,-1,-0.6,-1.1,2.8,-0.75]])
-Blob.Condition_JointSpace(Qtarget, Ztarget)
+#N=8000
+#params = {'D' : 7, 'K' :  8, 'N' : N}
+
+#       
+#Blob=ProMP(identifier='Blob', TrainingData=robotoolbox.GenerateToyData(N=N), params=params)
+#robotoolbox.GenerateDemoPlot(Blob.TrainingData, xvariable='Phases')
+#Blob.RegularizedLeastSquares() #Choice for l from [1]
+#Ztarget=np.array([0.15,0.9])
+#Qtarget=np.array([[0.08,-0.08,0.08,-1.7,0,1.75,0],[-0.3,0.3,-1,-0.6,-1.1,2.8,-0.75]])
+#Blob.Condition_JointSpace(Qtarget, Ztarget)
+        
+    
+"""
+*-*-*-*-*-*-*-*-*-*-*-**-*-*-
+"""
+
+df_generated, N=robotoolbox.PrepareData('JointsDemonstration.p')
+params = {'D' : 7, 'K' :  7, 'N' : N}
+RobotSaysHi=ProMP(identifier='RobotSaysHi', TrainingData=df_generated, params=params)
+RobotSaysHi.PlotBasisFunctions()
+RobotSaysHi.GenerateDemoPlot(xvariable='Phases')
+RobotSaysHi.RegularizedLeastSquares() #Choice for l from [1]
+RobotSaysHi.MeanAndStdPredictionPlot(factor=2)
