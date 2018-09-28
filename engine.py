@@ -508,15 +508,65 @@ class robotoolbox: #several tools that come in handy for other scripts
 #Qtarget=np.array([[0.08,-0.08,0.08,-1.7,0,1.75,0],[-0.3,0.3,-1,-0.6,-1.1,2.8,-0.75]])
 #Blob.Condition_JointSpace(Qtarget, Ztarget)
         
+#%%  
+from toolbox import kinematic_mapping as km
+
+class FrankaPanda:          
+    """Forward and Inverse kinematics function for our robot
+    Nomenclature of coordinate frames
+    Base=0= The frame on the base of the robot
+    1....7... the joints of the robot
+    F= The end of the robot without the gripper, and without a rottion, as seen here:
+    https://frankaemika.github.io/docs/control_parameters.html
+    EndEff=EE=The end effector, which is F rotated -45° in the Z axis, it's consequent with the camera mainly     
+        
+        """
+    def Camera(Q, Point):
+        """Point is an np array of [x, y, z] with ONLY ONE POINT
+        x, y and z MUST BE IN METERS """
+        df=km.init_params()
+        df['theta'].values[0:7]=Q
+        TF_Base=km.Transform2Base(df)[7]
+        TEE_F=km.Rz((-3/4)*np.pi) #Fixed
+        TEE_Base=np.dot(TF_Base,TEE_F)
+        PCamera_EE=np.array([0,0.06,0.08, 1])
+
+        PPoint_EE=Point+PCamera_EE[0:3]
+        PPoint_EE=np.append(PPoint_EE,1)
+        print(km.ExecuteTransform(TEE_Base, np.array([0,0,0,1])))
     
+        return km.ExecuteTransform(TEE_Base, PPoint_EE)
+    
+        
+    def fk(Q):
+        df=km.init_params()
+        df['theta'].values[0:7]=Q
+        TF_Base=km.Transform2Base(df)[7]
+ 
+        PGripper_F=np.array([0,0,0.11,1])
+        PGripper_Base=km.ExecuteTransform(TF_Base, PGripper_F)
+        return PGripper_Base[0:3]
+
+#%%    
 """
 *-*-*-*-*-*-*-*-*-*-*-**-*-*-
 """
+#
+#df_generated, N=robotoolbox.PrepareData('JointsDemonstration.p')
+#params = {'D' : 7, 'K' :  7, 'N' : N}
+#RobotSaysHi=ProMP(identifier='RobotSaysHi', TrainingData=df_generated, params=params)
+#RobotSaysHi.PlotBasisFunctions()
+#RobotSaysHi.GenerateDemoPlot(xvariable='Phases')
+#RobotSaysHi.RegularizedLeastSquares() #Choice for l from [1]
+#RobotSaysHi.MeanAndStdPredictionPlot(factor=2)
+#
 
-df_generated, N=robotoolbox.PrepareData('JointsDemonstration.p')
-params = {'D' : 7, 'K' :  7, 'N' : N}
-RobotSaysHi=ProMP(identifier='RobotSaysHi', TrainingData=df_generated, params=params)
-RobotSaysHi.PlotBasisFunctions()
-RobotSaysHi.GenerateDemoPlot(xvariable='Phases')
-RobotSaysHi.RegularizedLeastSquares() #Choice for l from [1]
-RobotSaysHi.MeanAndStdPredictionPlot(factor=2)
+
+Q=np.pi*np.zeros((7))
+Q[0]=np.pi/4
+Q[1]=np.pi/4
+Q[3]=-np.pi/2
+Q[5]=np.pi/2
+
+print(FrankaPanda.fk(Q))
+
