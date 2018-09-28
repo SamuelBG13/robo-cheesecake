@@ -2,3 +2,5 @@ SBG_Tarea11/
 ipython.html
 *.p
 IK.py
+SLRobot.py
+__pycache__
