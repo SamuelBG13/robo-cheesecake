@@ -546,6 +546,12 @@ class FrankaPanda:
         PGripper_F=np.array([0,0,0.11,1])
         PGripper_Base=km.ExecuteTransform(TF_Base, PGripper_F)
         return PGripper_Base[0:3]
+    
+    def ik(Q,ProMP):
+        #minimize(method=’SLSQP’)
+        pass
+        
+        
 
 #%%    
 """
@@ -563,10 +569,7 @@ class FrankaPanda:
 
 
 Q=np.pi*np.zeros((7))
-Q[0]=np.pi/4
-Q[1]=np.pi/4
-Q[3]=-np.pi/2
-Q[5]=np.pi/2
+
 
 print(FrankaPanda.fk(Q))
 
