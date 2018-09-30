@@ -33,7 +33,10 @@ import numpy.random as npr
 import numpy.linalg  as npl
 import pickle as p 
 import pandas as pd
-import matplotlib.pyplot as plt          
+import matplotlib.pyplot as plt     
+from sklearn.metrics import mean_squared_error
+from scipy.optimize import minimize, NonlinearConstraint,BFGS
+
 plt.close("all") 
            
     
@@ -205,16 +208,14 @@ class ProMP:
         K=self.K
         D=self.D
         N=self.N
-        Ey_des=0.0001*np.eye(D) #Accuracy matrix
+        Ey_des=0.00001*np.eye(D) #Accuracy matrix
         Ew=self.estimate_sigma
         Muw=self.estimate_m
 
-        
+          
+            
         for idxq, q in enumerate(Qtarget):
             z=Ztarget[idxq]
-        
-        
-    
         
         
             Psi=self.BasisMatrix(z).T  # In [1] this matrix is defined as a DxKD matrix. 
@@ -226,7 +227,7 @@ class ProMP:
             Ew=Ew-L.dot(Psi.T.dot(Ew))
             
         self.ConditionedAndStdPredictionPlot(wconditioned=Muw, Qtarget=Qtarget, Ztarget=Ztarget, factor=2)
-        pass
+        return Muw
 
     
 #    def Condition_TaskSpace(self, viapoints):
@@ -245,14 +246,18 @@ class ProMP:
 
         Qlist=['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'] #list of q strings 
         Y=np.array([])
-        for z in Z:
-            if z==0:
-                Y=np.dot(self.BasisMatrix(z),w)
-            else:
-                Y=np.vstack((Y,np.dot(self.BasisMatrix(z),w)))
-               
+        
+        if isinstance(Z,int) or isinstance(Z,float) :
+            Y=np.dot(self.BasisMatrix(Z),w)
+        else:
+            for z in Z:
+                if z==0:
+                    Y=np.dot(self.BasisMatrix(z),w)
+                else:
+                    Y=np.vstack((Y,np.dot(self.BasisMatrix(z),w)))
+                   
         return Z, Y
-    
+        
 
     def GenerateDemoPlot(self, xvariable="Times", toy=False):
     
@@ -367,6 +372,8 @@ class ProMP:
             plt.ylim(-np.pi,np.pi)
         plt.suptitle('Mean + '+str(factor)+' std predictions - Conditioned trajectory for N=' + str(self.N) + ' demonstrations')
     
+
+        
 
 class robotoolbox: #several tools that come in handy for other scripts
     @staticmethod
@@ -547,6 +554,13 @@ class FrankaPanda:
         PGripper_Base=km.ExecuteTransform(TF_Base, PGripper_F)
         return PGripper_Base[0:3]
     
+    def LossProMP(q, ProMP, z):
+        
+        Z, Q_proMP=ProMP.GeneratePrediction(Z=z)
+        return mean_squared_error(Q_proMP, q)
+     
+
+    
     def ik(Q,ProMP):
         #minimize(method=’SLSQP’)
         pass
@@ -558,18 +572,31 @@ class FrankaPanda:
 *-*-*-*-*-*-*-*-*-*-*-**-*-*-
 """
 #
-#df_generated, N=robotoolbox.PrepareData('JointsDemonstration.p')
-#params = {'D' : 7, 'K' :  7, 'N' : N}
-#RobotSaysHi=ProMP(identifier='RobotSaysHi', TrainingData=df_generated, params=params)
-#RobotSaysHi.PlotBasisFunctions()
-#RobotSaysHi.GenerateDemoPlot(xvariable='Phases')
-#RobotSaysHi.RegularizedLeastSquares() #Choice for l from [1]
-#RobotSaysHi.MeanAndStdPredictionPlot(factor=2)
+df_generated, N=robotoolbox.PrepareData('JointsDemonstration.p')
+params = {'D' : 7, 'K' :  5, 'N' : N}
+RobotSaysHi=ProMP(identifier='RobotSaysHi', TrainingData=df_generated, params=params)
+RobotSaysHi.PlotBasisFunctions()
+RobotSaysHi.RegularizedLeastSquares() #Choice for l from [1]
+RobotSaysHi.GenerateDemoPlot(xvariable="Phases")
+
+
+def LossIK(q, Target):
+    loss= mean_squared_error(FrankaPanda.fk(q), Target)
+    return loss 
+
+z=0.3
+Target=np.array([ 0.467, -0.427,  0.819])
+
+
+#cns = [{'type': 'ineq', 'fun': lambda q: 0.01-FrankaPanda.LossProMP(q, RobotSaysHi, z=z) }]
+res1 = minimize(LossIK, args=(Target), x0=RobotSaysHi.GeneratePrediction(Z=z)[1], method='COBYLA', tol=1e-3)
+print("IK error: ", LossIK(res1.x, Target) ,"\nThe angles are: ", res1.x, "\nThe position is: ", FrankaPanda.fk(res1.x), "\nThe error is: ", (FrankaPanda.fk(res1.x)-Target),  "\nThe differences with the ProMP are: ", (res1.x-RobotSaysHi.GeneratePrediction(Z=z)[1]))
+
+#print("\n**//**//**//**//**//**//**//\n**//**//**//**//**//**//**//")
+#cns = [{'type': 'ineq', 'fun': lambda q: 0.001-LossIK(q, Target) }]
+#res2 = minimize(FrankaPanda.LossProMP, args=(RobotSaysHi,z), x0=RobotSaysHi.GeneratePrediction(Z=z)[1], method='COBYLA', tol=1e-5, constraints=cns)
+#print("IK error: ", LossIK(res2.x, Target) ,"\nThe angles are: ", res2.x, "\nThe position is: ", FrankaPanda.fk(res2.x), "\nThe error is: ", (FrankaPanda.fk(res2.x)-Target),  "\nThe differences with the ProMP are: ", (res2.x-RobotSaysHi.GeneratePrediction(Z=z)[1]))
 #
 
-
-Q=np.pi*np.zeros((7))
-
-
-print(FrankaPanda.fk(Q))
+RobotSaysHi.Condition_JointSpace(Qtarget=[RobotSaysHi.GeneratePrediction(Z=0)[1], res1.x], Ztarget=[0,z])
 
