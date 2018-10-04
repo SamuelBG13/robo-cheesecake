@@ -609,13 +609,34 @@ class FrankaPanda:
         PGripper_Base=km.ExecuteTransform(TF_Base, PGripper_F)
         return PGripper_Base[0:3]
     
+    def fk_diffSystem(Q, system='shoulder'):
+        if system=='shoulder':
+            s=4
+        elif system=='head':
+            s=6
+        else:
+            s=7
+        df=km.init_params()
+        df['theta'].values[0:7]=Q
+        TF_Base=km.Transform2Base(df)[s]
+ 
+        PSystem_F=np.array([0,0,0,1])
+        PSystem_Base=km.ExecuteTransform(TF_Base,  PSystem_F)
+        return PSystem_Base[0:3]
+    
     def LossProMP(q, ProMP, z):
         
         Z, Q_proMP=ProMP.GeneratePrediction(Z=z)
         return mean_squared_error(Q_proMP, q)
      
-    def LossIK(q, Target):
-        loss= mean_squared_error(FrankaPanda.fk(q), Target)
+    def LossIK(q, Target, system=None):
+        if system is None or system=='Gripper':
+            loss= mean_squared_error(FrankaPanda.fk(q), Target)
+        else:
+            loss= mean_squared_error(FrankaPanda.fk_diffSystem(Q, system=system), Target)
+         
+            
+        
         return loss 
 
     
