@@ -614,31 +614,15 @@ class FrankaPanda:
         Z, Q_proMP=ProMP.GeneratePrediction(Z=z)
         return mean_squared_error(Q_proMP, q)
      
+    def LossIK(q, Target):
+        loss= mean_squared_error(FrankaPanda.fk(q), Target)
+        return loss 
 
     
-    def ik():
-        
-
-        def LossIK(q, Target):
-            loss= mean_squared_error(FrankaPanda.fk(q), Target)
-            return loss 
-        def LossConjugated(q, Target, ProMP, z):
-            return   0.01*FrankaPanda.LossProMP(q, ProMP, z)+LossIK(q, Target)
-        
-        z=0.3
-        Target=np.array([ 0.467, -0.427,  0.819])
-        
-        
-        #cns = [{'type': 'ineq', 'fun': lambda q: 0.01-FrankaPanda.LossProMP(q, RobotSaysHi, z=z) }]
-        res1 = minimize(LossIK, args=(Target), x0=RobotSaysHi.GeneratePrediction(Z=z)[1], method='COBYLA', tol=1e-3)
-        print("IK error: ", LossIK(res1.x, Target) ,"\nThe angles are: ", res1.x, "\nThe position is: ", FrankaPanda.fk(res1.x), "\nThe error is: ", (FrankaPanda.fk(res1.x)-Target),  "\nThe differences with the ProMP are: ", (res1.x-RobotSaysHi.GeneratePrediction(Z=z)[1]))
-        
-        print("\n**//**//**//**//**//**//**//\n**//**//**//**//**//**//**//")
-        #cns = [{'type': 'ineq', 'fun': lambda q: 0.001-LossIK(q, Target) }]
-        #res2 = minimize(FrankaPanda.LossProMP, args=(RobotSaysHi,z), x0=RobotSaysHi.GeneratePrediction(Z=z)[1], method='COBYLA', tol=1e-5, constraints=cns)
-        #print("IK error: ", LossIK(res2.x, Target) ,"\nThe angles are: ", res2.x, "\nThe position is: ", FrankaPanda.fk(res2.x), "\nThe error is: ", (FrankaPanda.fk(res2.x)-Target),  "\nThe differences with the ProMP are: ", (res2.x-RobotSaysHi.GeneratePrediction(Z=z)[1]))
-        #
-        RobotSaysHi.Condition_JointSpace(Qtarget=[RobotSaysHi.GeneratePrediction(Z=0)[1], res1.x], Ztarget=[0,z])        
+    def ik(z, Target, ProMP):    
+        res = minimize(FrankaPanda.LossIK, args=(Target), x0=ProMP.GeneratePrediction(Z=z)[1], method='COBYLA', tol=1e-3)
+        print("IK error: ", FrankaPanda.LossIK(res.x, Target) ,"\nThe angles are: ", res.x, "\nThe position is: ", FrankaPanda.fk(res.x), "\nThe error is: ", (FrankaPanda.fk(res.x)-Target),  "\nThe differences with the ProMP are: ", (res.x-ProMP.GeneratePrediction(Z=z)[1]))
+        return res.x
 
         
 #%%
@@ -658,8 +642,14 @@ RobotSaysHi=ProMP(identifier='RobotSaysHi', TrainingData=df_generated, params=pa
 #RobotSaysHi.PlotBasisFunctions()
 RobotSaysHi.RegularizedLeastSquares() #Choice for l from [1]
 RobotSaysHi.GenerateDemoPlot(xvariable="Phases")
-T, Q= RobotSaysHi.GetJointData()
+
+z=0.3
+Target=np.array([ 0.467, -0.427,  0.819])
+Q_des=FrankaPanda.ik(z, Target, RobotSaysHi)
+
+w_des=RobotSaysHi.Condition_JointSpace(Qtarget=[RobotSaysHi.GetStartPoint(w=RobotSaysHi.estimate_m), Q_des], Ztarget=[0,z])        
+
+
+T, Q= RobotSaysHi.GetJointData(w=w_des)
 robotoolbox.PlotTrajectory(T, Q)
-
-
 
