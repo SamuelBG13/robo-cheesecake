@@ -200,40 +200,7 @@ class ProMP:
         self.estimate_sigma=np.cov(wmatrix.T)
 
         
-    def Condition_JointSpace(self,Qtarget, Ztarget):
-        
-        """IN CONSTRUCTION
-        FOR NOW IT IS ASSUMED THAT QTarget and Ztarget ARE
-        ONLY ONE VIA POINT"""
-        K=self.K
-        D=self.D
-        N=self.N
-        Ey_des=0.00001*np.eye(D) #Accuracy matrix
-        Ew=self.estimate_sigma
-        Muw=self.estimate_m
 
-          
-            
-        for idxq, q in enumerate(Qtarget):
-            z=Ztarget[idxq]
-        
-        
-            Psi=self.BasisMatrix(z).T  # In [1] this matrix is defined as a DxKD matrix. 
-            # However later it isregarded as KD*D. Therefore, the transpose is used. 
-            
-            #From [1]:
-            L=Ew.dot(Psi).dot(npl.inv(Ey_des+Psi.T.dot(Ew).dot(Psi)))
-            Muw=Muw+L.dot(q.T-Psi.T.dot(Muw))
-            Ew=Ew-L.dot(Psi.T.dot(Ew))
-            
-        self.ConditionedAndStdPredictionPlot(wconditioned=Muw, Qtarget=Qtarget, Ztarget=Ztarget, factor=2)
-        return Muw
-
-    
-#    def Condition_TaskSpace(self, viapoints):
-#        pass
-            
-            
     def GeneratePrediction(self, w=None, Z=None):
         ''' Predicts the mean trajectoy for a given w. 
         
@@ -373,7 +340,80 @@ class ProMP:
         plt.suptitle('Mean + '+str(factor)+' std predictions - Conditioned trajectory for N=' + str(self.N) + ' demonstrations')
     
 
+    def Condition_JointSpace(self,Qtarget, Ztarget):
         
+        """IN CONSTRUCTION
+        FOR NOW IT IS ASSUMED THAT QTarget and Ztarget ARE
+        ONLY ONE VIA POINT"""
+        K=self.K
+        D=self.D
+        N=self.N
+        Ey_des=0.00001*np.eye(D) #Accuracy matrix
+        Ew=self.estimate_sigma
+        Muw=self.estimate_m
+
+          
+            
+        for idxq, q in enumerate(Qtarget):
+            z=Ztarget[idxq]
+        
+        
+            Psi=self.BasisMatrix(z).T  # In [1] this matrix is defined as a DxKD matrix. 
+            # However later it isregarded as KD*D. Therefore, the transpose is used. 
+            
+            #From [1]:
+            L=Ew.dot(Psi).dot(npl.inv(Ey_des+Psi.T.dot(Ew).dot(Psi)))
+            Muw=Muw+L.dot(q.T-Psi.T.dot(Muw))
+            Ew=Ew-L.dot(Psi.T.dot(Ew))
+            
+        self.ConditionedAndStdPredictionPlot(wconditioned=Muw, Qtarget=Qtarget, Ztarget=Ztarget, factor=2)
+        return Muw
+
+    
+#    def Condition_TaskSpace(self, viapoints):
+#        pass
+        
+    def GetJointData(self, w=None, MaxTime=None, robotrate=0.5):
+        """"In constructions"""
+        if w is None:
+            w=self.estimate_m
+        if MaxTime is None:
+            MaxTime=robotrate*8
+        SampledPoints=int(MaxTime/robotrate)
+        Q=np.array([])
+        T=np.array([])
+
+        
+        for timestamp in range(SampledPoints+1):
+            phase=timestamp/SampledPoints
+            prediction=[self.GeneratePrediction(w=w, Z=phase)[1]]
+
+            if timestamp==0:
+                Q=prediction
+                
+            else:
+                Q=np.vstack((Q,prediction))
+            
+            T=np.append(T, robotrate*timestamp)
+        
+        return T, Q
+    
+    
+    def GetStartPoint(self, w=None):
+        if w is None:
+            w=self.estimate_m
+        
+                  
+        return self.GeneratePrediction(w=w, Z=0)[1]
+    
+
+    
+        
+            
+       
+        
+            
+                    
 
 class robotoolbox: #several tools that come in handy for other scripts
     @staticmethod
@@ -447,7 +487,22 @@ class robotoolbox: #several tools that come in handy for other scripts
         return df_generated, N
     
 
-
+    @staticmethod
+    def PlotTrajectory(T, Q):
+        Qlist=['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'] #list of q strings 
+        plt.figure() # The generated data for each joint
+    
+    
+        for index, Time in enumerate(T):
+            Traj=Q[index]
+            for q in range(7):
+                plt.subplot(1,7,q+1)
+                
+                plt.plot(Time, Traj[q],'g*')
+                plt.title(Qlist[q])
+                plt.ylim(-np.pi,np.pi)
+            plt.suptitle('Oncoming trajectory')
+        
         
     
     @staticmethod
@@ -540,7 +595,7 @@ class FrankaPanda:
 
         PPoint_EE=Point+PCamera_EE[0:3]
         PPoint_EE=np.append(PPoint_EE,1)
-        print(km.ExecuteTransform(TEE_Base, np.array([0,0,0,1])))
+        print("End effector positioN", km.ExecuteTransform(TEE_Base, np.array([0,0,0,1])))
     
         return km.ExecuteTransform(TEE_Base, PPoint_EE)
     
@@ -561,11 +616,35 @@ class FrankaPanda:
      
 
     
-    def ik(Q,ProMP):
-        #minimize(method=’SLSQP’)
-        pass
+    def ik():
+        
+
+        def LossIK(q, Target):
+            loss= mean_squared_error(FrankaPanda.fk(q), Target)
+            return loss 
+        def LossConjugated(q, Target, ProMP, z):
+            return   0.01*FrankaPanda.LossProMP(q, ProMP, z)+LossIK(q, Target)
+        
+        z=0.3
+        Target=np.array([ 0.467, -0.427,  0.819])
         
         
+        #cns = [{'type': 'ineq', 'fun': lambda q: 0.01-FrankaPanda.LossProMP(q, RobotSaysHi, z=z) }]
+        res1 = minimize(LossIK, args=(Target), x0=RobotSaysHi.GeneratePrediction(Z=z)[1], method='COBYLA', tol=1e-3)
+        print("IK error: ", LossIK(res1.x, Target) ,"\nThe angles are: ", res1.x, "\nThe position is: ", FrankaPanda.fk(res1.x), "\nThe error is: ", (FrankaPanda.fk(res1.x)-Target),  "\nThe differences with the ProMP are: ", (res1.x-RobotSaysHi.GeneratePrediction(Z=z)[1]))
+        
+        print("\n**//**//**//**//**//**//**//\n**//**//**//**//**//**//**//")
+        #cns = [{'type': 'ineq', 'fun': lambda q: 0.001-LossIK(q, Target) }]
+        #res2 = minimize(FrankaPanda.LossProMP, args=(RobotSaysHi,z), x0=RobotSaysHi.GeneratePrediction(Z=z)[1], method='COBYLA', tol=1e-5, constraints=cns)
+        #print("IK error: ", LossIK(res2.x, Target) ,"\nThe angles are: ", res2.x, "\nThe position is: ", FrankaPanda.fk(res2.x), "\nThe error is: ", (FrankaPanda.fk(res2.x)-Target),  "\nThe differences with the ProMP are: ", (res2.x-RobotSaysHi.GeneratePrediction(Z=z)[1]))
+        #
+        RobotSaysHi.Condition_JointSpace(Qtarget=[RobotSaysHi.GeneratePrediction(Z=0)[1], res1.x], Ztarget=[0,z])        
+
+        
+#%%
+Q=np.array([0,0,0,-np.pi/2,0,np.pi/2, 0])       
+Point=np.array([-0.1,-0.1, 0.6]) 
+#print(FrankaPanda.Camera(Q, Point))
 
 #%%    
 """
@@ -573,30 +652,14 @@ class FrankaPanda:
 """
 #
 df_generated, N=robotoolbox.PrepareData('JointsDemonstration.p')
+
 params = {'D' : 7, 'K' :  5, 'N' : N}
 RobotSaysHi=ProMP(identifier='RobotSaysHi', TrainingData=df_generated, params=params)
-RobotSaysHi.PlotBasisFunctions()
+#RobotSaysHi.PlotBasisFunctions()
 RobotSaysHi.RegularizedLeastSquares() #Choice for l from [1]
 RobotSaysHi.GenerateDemoPlot(xvariable="Phases")
+T, Q= RobotSaysHi.GetJointData()
+robotoolbox.PlotTrajectory(T, Q)
 
 
-def LossIK(q, Target):
-    loss= mean_squared_error(FrankaPanda.fk(q), Target)
-    return loss 
-
-z=0.3
-Target=np.array([ 0.467, -0.427,  0.819])
-
-
-#cns = [{'type': 'ineq', 'fun': lambda q: 0.01-FrankaPanda.LossProMP(q, RobotSaysHi, z=z) }]
-res1 = minimize(LossIK, args=(Target), x0=RobotSaysHi.GeneratePrediction(Z=z)[1], method='COBYLA', tol=1e-3)
-print("IK error: ", LossIK(res1.x, Target) ,"\nThe angles are: ", res1.x, "\nThe position is: ", FrankaPanda.fk(res1.x), "\nThe error is: ", (FrankaPanda.fk(res1.x)-Target),  "\nThe differences with the ProMP are: ", (res1.x-RobotSaysHi.GeneratePrediction(Z=z)[1]))
-
-#print("\n**//**//**//**//**//**//**//\n**//**//**//**//**//**//**//")
-#cns = [{'type': 'ineq', 'fun': lambda q: 0.001-LossIK(q, Target) }]
-#res2 = minimize(FrankaPanda.LossProMP, args=(RobotSaysHi,z), x0=RobotSaysHi.GeneratePrediction(Z=z)[1], method='COBYLA', tol=1e-5, constraints=cns)
-#print("IK error: ", LossIK(res2.x, Target) ,"\nThe angles are: ", res2.x, "\nThe position is: ", FrankaPanda.fk(res2.x), "\nThe error is: ", (FrankaPanda.fk(res2.x)-Target),  "\nThe differences with the ProMP are: ", (res2.x-RobotSaysHi.GeneratePrediction(Z=z)[1]))
-#
-
-RobotSaysHi.Condition_JointSpace(Qtarget=[RobotSaysHi.GeneratePrediction(Z=0)[1], res1.x], Ztarget=[0,z])
 
