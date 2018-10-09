@@ -718,26 +718,29 @@ Point=np.array([-0.1,-0.1, 0.6])
 """
 *-*-*-*-*-*-*-*-*-*-*-**-*-*-
 """
-#
-df_generated, N=robotoolbox.PrepareData('DATAblaaaa.p')
 
-params = {'D' : 7, 'K' :  5, 'N' : N}
-RobotSaysHi=ProMP(identifier='RobotSaysHi', TrainingData=df_generated, params=params)
-#RobotSaysHi.PlotBasisFunctions()
-RobotSaysHi.RegularizedLeastSquares() #Choice for l from [1]
-RobotSaysHi.GenerateDemoPlot(xvariable="Times")
-
-
-z=0.3
-Target=np.array([ 0.467, -0.427,  0.819])
-Q_des=FrankaPanda.ik(z, Target, RobotSaysHi)
-w_des=RobotSaysHi.Condition_JointSpace(Qtarget=[RobotSaysHi.GetStartPoint(w=RobotSaysHi.estimate_m), Q_des], Ztarget=[0,z])        
-
-
-T, Q= RobotSaysHi.GetJointData(w=w_des)
-
-Qp,Qpp=robotoolbox.GetAccel(Q,T)
-robotoolbox.PlotTrajectory(T, Q)
-robotoolbox.PlotAccel(T,Qpp)
-
+def main():
+    
+    #
+    df_generated, N=robotoolbox.PrepareData('DATAblaaaa.p')
+    
+    params = {'D' : 7, 'K' :  5, 'N' : N}
+    RobotSaysHi=ProMP(identifier='RobotSaysHi', TrainingData=df_generated, params=params)
+    #RobotSaysHi.PlotBasisFunctions()
+    RobotSaysHi.RegularizedLeastSquares() #Choice for l from [1]
+    RobotSaysHi.GenerateDemoPlot(xvariable="Times")
+    
+    
+    z=0.3
+    Target=np.array([ 0.467, -0.427,  0.819])
+    Q_des=FrankaPanda.ik(z, Target, RobotSaysHi)
+    w_des=RobotSaysHi.Condition_JointSpace(Qtarget=[RobotSaysHi.GetStartPoint(w=RobotSaysHi.estimate_m), Q_des], Ztarget=[0,z])        
+    
+    
+    T, Q= RobotSaysHi.GetJointData(w=w_des)
+    
+    Qp,Qpp=robotoolbox.GetAccel(Q,T)
+    robotoolbox.PlotTrajectory(T, Q)
+    robotoolbox.PlotAccel(T,Qpp)
+#main()
 
