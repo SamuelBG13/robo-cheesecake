@@ -199,7 +199,46 @@ class ProMP:
         self.estimate_sd=np.std(self.W.values)
         self.estimate_sigma=np.cov(wmatrix.T)
 
+    def ExpectationMaximization(self, l=1e-12):
         
+        """This uses EM wihtout a prior. 
+        
+
+        """
+#        D=self.D
+#        K=self.K
+#        
+#        Qlist=['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'] #list of q strings 
+#        wmatrix=np.array([])
+#        df=self.TrainingData
+#        for index, row in df.iterrows():
+#            PSI=self.BigFuckingMatrix(row)
+#            Y=row[Qlist[0]]
+#            for q in range (1,D):
+#                Y=np.hstack((Y,row[Qlist[q]]))
+#            ######
+#            RegMat=l*np.eye(K*D)
+#            
+#            factor1=npl.inv((np.matmul(PSI.T,PSI)+RegMat))
+#            factor2=np.dot(PSI.T,Y)
+#            w=np.dot(factor1,factor2)
+#            self.examplestrained=self.examplestrained+1
+#            
+#            # The exemplified w's are stored as a dataframe. But first, they are
+#            # stacked on a matrix such that we can compute easily the covariance. 
+#            if index==0:
+#                wmatrix=w
+#            else:
+#                wmatrix=np.vstack((wmatrix,w)) 
+#                
+#            self.W=self.W.append({'W': w}, ignore_index=True)
+#
+#              
+#        self.estimate_m=np.mean(self.W.values)
+#        self.estimate_sd=np.std(self.W.values)
+#        self.estimate_sigma=np.cov(wmatrix.T)
+#
+#                
 
     def GeneratePrediction(self, w=None, Z=None):
         ''' Predicts the mean trajectoy for a given w. 
@@ -241,7 +280,7 @@ class ProMP:
             for q in range(7):
                 plt.subplot(1,7,q+1)
                 
-                plt.plot(row[xvariable], row[Qlist[q]])
+                plt.plot(row[xvariable], row[Qlist[q]], 'r.')
                 plt.title(Qlist[q])
                 plt.ylim(-np.pi,np.pi)
             if toy:
@@ -342,9 +381,11 @@ class ProMP:
 
     def Condition_JointSpace(self,Qtarget, Ztarget):
         
-        """IN CONSTRUCTION
-        FOR NOW IT IS ASSUMED THAT QTarget and Ztarget ARE
-        ONLY ONE VIA POINT"""
+        """Qtarget and Ztarget contain one or more target points.
+        
+        This script conditions the distribution and generates a nice plot over it.
+        returns only the mean.
+        T"""
         K=self.K
         D=self.D
         N=self.N
@@ -374,7 +415,7 @@ class ProMP:
 #        pass
         
     def GetJointData(self, w=None, MaxTime=None, robotrate=0.5):
-        """"In constructions"""
+        """Gets the joint data in a robot-friendly way."""
         if w is None:
             w=self.estimate_m
         if MaxTime is None:
@@ -454,7 +495,15 @@ class robotoolbox: #several tools that come in handy for other scripts
         if whyv==10:
             print("Because you failed to give me the answer for the question of life, the universe, and everything else")
     
-
+    @staticmethod
+    def GetAccel(Q,T):
+        """ Q is a points x joints matrix. Qp and Qpp idem """
+        D=Q.shape[1]
+        Qp=np.zeros(Q.shape); Qpp=np.zeros(Q.shape); #Initializaiton.
+        for joint in range(D):
+            Qp[:,joint]=np.gradient(Q[:,joint], T)
+            Qpp[:,joint]=np.gradient(Qp[:,joint], T)
+        return Qp, Qpp
    
     @staticmethod
     
@@ -503,7 +552,21 @@ class robotoolbox: #several tools that come in handy for other scripts
                 plt.ylim(-np.pi,np.pi)
             plt.suptitle('Oncoming trajectory')
         
-        
+    @staticmethod
+    def PlotAccel(T, Qpp):
+        Qlist=['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'] #list of q strings 
+        plt.figure() # The generated data for each joint
+    
+    
+        for index, Time in enumerate(T):
+            Traj=Qpp[index]
+            for q in range(7):
+                plt.subplot(1,7,q+1)
+                
+                plt.plot(Time, Traj[q],'g*')
+                plt.title(Qlist[q])
+                plt.ylim(-np.pi,np.pi)
+            plt.suptitle('Oncoming trajectory')        
     
     @staticmethod
     def IAmHungry():
@@ -656,21 +719,25 @@ Point=np.array([-0.1,-0.1, 0.6])
 *-*-*-*-*-*-*-*-*-*-*-**-*-*-
 """
 #
-df_generated, N=robotoolbox.PrepareData('JointsDemonstration.p')
+df_generated, N=robotoolbox.PrepareData('DATAblaaaa.p')
 
 params = {'D' : 7, 'K' :  5, 'N' : N}
 RobotSaysHi=ProMP(identifier='RobotSaysHi', TrainingData=df_generated, params=params)
 #RobotSaysHi.PlotBasisFunctions()
 RobotSaysHi.RegularizedLeastSquares() #Choice for l from [1]
-RobotSaysHi.GenerateDemoPlot(xvariable="Phases")
+RobotSaysHi.GenerateDemoPlot(xvariable="Times")
+
 
 z=0.3
 Target=np.array([ 0.467, -0.427,  0.819])
 Q_des=FrankaPanda.ik(z, Target, RobotSaysHi)
-
 w_des=RobotSaysHi.Condition_JointSpace(Qtarget=[RobotSaysHi.GetStartPoint(w=RobotSaysHi.estimate_m), Q_des], Ztarget=[0,z])        
 
 
 T, Q= RobotSaysHi.GetJointData(w=w_des)
+
+Qp,Qpp=robotoolbox.GetAccel(Q,T)
 robotoolbox.PlotTrajectory(T, Q)
+robotoolbox.PlotAccel(T,Qpp)
+
 
