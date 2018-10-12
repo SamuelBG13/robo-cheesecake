@@ -411,6 +411,7 @@ class ProMP:
         return Muw
 
 
+
 #    def Condition_TaskSpace(self, viapoints):
 #        pass
 
@@ -452,7 +453,7 @@ class ProMP:
             w=self.estimate_m
 
 
-        return self.GeneratePrediction(w=w, Z=1)[1]
+        return self.GeneratePrediction(w=w, Z=0)[1]
 
 
 
