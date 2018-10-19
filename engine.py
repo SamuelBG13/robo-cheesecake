@@ -701,18 +701,28 @@ class FrankaPanda:
         if system is None or system=='Gripper':
             loss= mean_squared_error(FrankaPanda.fk(q), Target)
         else:
-            loss= mean_squared_error(FrankaPanda.fk_diffSystem(Q, system=system), Target)
-
+            loss= mean_squared_error(FrankaPanda.fk_diffSystem(q, system=system), Target)
 
 
         return loss
 
 
+    def LossIK_shoulder(q, Target):
+        print(FrankaPanda.fk_diffSystem(q, system='shoulder'))
+        return mean_squared_error(FrankaPanda.fk_diffSystem(q, system='shoulder'), Target)
+
+
+
+        return loss
     def ik(z, Target, ProMP):
         res = minimize(FrankaPanda.LossIK, args=(Target), x0=ProMP.GeneratePrediction(Z=z)[1], method='COBYLA', tol=1e-3)
         print("IK error: ", FrankaPanda.LossIK(res.x, Target) ,"\nThe angles are: ", res.x, "\nThe position is: ", FrankaPanda.fk(res.x), "\nThe error is: ", (FrankaPanda.fk(res.x)-Target),  "\nThe differences with the ProMP are: ", (res.x-ProMP.GeneratePrediction(Z=z)[1]))
         return res.x
 
+    def ik_shoulder(QProMP, Target, ProMP):
+        res = minimize(FrankaPanda.LossIK_shoulder, args=(Target), x0=QProMP, method='COBYLA', tol=1e-6)
+        #print("IK error: ", FrankaPanda.LossIK(res.x, Target) ,"\nThe angles are: ", res.x, "\nThe position is: ", FrankaPanda.fk(res.x), "\nThe error is: ", (FrankaPanda.fk(res.x)-Target),  "\nThe differences with the ProMP are: ", (res.x-QProMP))
+        return res
 
 #%%
 Q=np.array([0,0,0,-np.pi/2,0,np.pi/2, 0])
