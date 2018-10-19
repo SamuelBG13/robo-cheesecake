@@ -3,7 +3,7 @@ Readme
 This will be eventually updated
 
 
-    The methods implemented were adapted for two papers by the labs of Jan Peters in Tübingen and Darmstadt.
+    The methods implemented were adapted for two papers by the labs of Jan Peters in TÃ¼bingen and Darmstadt.
     These papers are:
         
         
@@ -24,4 +24,8 @@ This will be eventually updated
         https://www.ias.informatik.tu-darmstadt.de/uploads/Publications/Paraschos_NIPS_2013a.pdf
         
     Autors of the code: 
-        Cheescake team @ Deep Learning and Robotics Challenge 2018
+        Cheesecake Team
+        - Claudia Winklmayr
+        - Sevim Calikstan 
+        - Samuel Bustamante
+        
