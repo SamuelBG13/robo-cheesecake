@@ -205,35 +205,47 @@ class ProMP:
         
 
         """
-#        D=self.D
-#        K=self.K
-#        
-#        Qlist=['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'] #list of q strings 
-#        wmatrix=np.array([])
-#        df=self.TrainingData
-#        for index, row in df.iterrows():
-#            PSI=self.BigFuckingMatrix(row)
-#            Y=row[Qlist[0]]
-#            for q in range (1,D):
-#                Y=np.hstack((Y,row[Qlist[q]]))
-#            ######
-#            RegMat=l*np.eye(K*D)
-#            
-#            factor1=npl.inv((np.matmul(PSI.T,PSI)+RegMat))
-#            factor2=np.dot(PSI.T,Y)
-#            w=np.dot(factor1,factor2)
-#            self.examplestrained=self.examplestrained+1
-#            
-#            # The exemplified w's are stored as a dataframe. But first, they are
-#            # stacked on a matrix such that we can compute easily the covariance. 
-#            if index==0:
-#                wmatrix=w
-#            else:
-#                wmatrix=np.vstack((wmatrix,w)) 
-#                
-#            self.W=self.W.append({'W': w}, ignore_index=True)
-#
-#              
+        D=self.D
+        K=self.K
+        
+        Qlist=['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'] #list of q strings 
+        wmatrix=np.array([])
+        plt.figure()
+        df=self.TrainingData
+        for index, row in df.iterrows():
+            PSI=self.BigFuckingMatrix(row)
+            Y=row[Qlist[0]]
+            for q in range (1,D):
+                Y=np.hstack((Y,row[Qlist[q]]))
+            ######
+            RegMat=l*np.eye(K*D)
+            
+            factor1=npl.inv((np.matmul(PSI.T,PSI)+RegMat))
+            factor2=np.dot(PSI.T,Y)
+            w=np.dot(factor1,factor2)
+            self.examplestrained=self.examplestrained+1
+            
+            # The exemplified w's are stored as a dataframe. But first, they are
+            # stacked on a matrix such that we can compute easily the covariance. 
+            if index==0:
+                wmatrix=w
+            else:
+                wmatrix=np.vstack((wmatrix,w)) 
+            plt.plot(w,'r') 
+        from sklearn.mixture import GaussianMixture
+        gmm = GaussianMixture(n_components=2)
+        gmm.fit(wmatrix)
+        print(gmm.covariances_.shape)
+        plt.plot(gmm.means_[0],'b', lw=5) 
+        plt.plot(gmm.means_[1],'g', lw=5)
+        self.MeanAndStdPredictionPlot_notOriginalMean(mean=gmm.means_[0], std=np.diagonal(gmm.covariances_[0])**0.5, factor=2)
+
+        self.MeanAndStdPredictionPlot_notOriginalMean(mean=gmm.means_[1], std=np.diagonal(gmm.covariances_[1])**0.5, factor=2)
+
+
+
+         
+   
 #        self.estimate_m=np.mean(self.W.values)
 #        self.estimate_sd=np.std(self.W.values)
 #        self.estimate_sigma=np.cov(wmatrix.T)
@@ -277,16 +289,26 @@ class ProMP:
     
     
         for index, row in df.iterrows():
+            
+
             for q in range(7):
                 plt.subplot(1,7,q+1)
                 
-                plt.plot(row[xvariable], row[Qlist[q]], 'r.')
+                plt.plot(row[xvariable], row[Qlist[q]],'r')
                 plt.title(Qlist[q])
                 plt.ylim(-np.pi,np.pi)
+                #plt.xticks([0, 6], size = 14)
+                if q>0:
+                    plt.yticks([])
+                else: 
+                    plt.yticks([-np.pi, 0, np.pi], ['$-\pi$', '$0$', '$\pi$'], size = 14)
             if toy:
                 plt.suptitle('Toy demonstrated data')
             else:
                 plt.suptitle('Demonstrated data')
+
+
+            plt.show()
           
     
     def MeanAndStdPredictionPlot(self, factor=1):
@@ -324,6 +346,42 @@ class ProMP:
             plt.title(Qlist[idq])
             plt.ylim(-np.pi,np.pi)
         plt.suptitle('Mean + '+str(factor)+' std predictions')
+        
+    def MeanAndStdPredictionPlot_notOriginalMean(self, mean, std, factor=1):
+        ''' Predicts the mean trajectoy and std after training, and produces
+        a nice plotplot of the mean +- std trajectories for each DoF. 
+        The parameter factor multiplies the standard deviation'''
+
+        Z=np.arange(0,1,0.05)
+        Qlist=['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'q6'] #list of q strings 
+        Y=np.array([])
+        for z in Z:
+            if z==0:
+                Y=np.dot(self.BasisMatrix(z),mean)
+            else:
+                Y=np.vstack((Y,np.dot(self.BasisMatrix(z),mean)))
+        Ylower=np.array([])
+        for z in Z:
+            if z==0:
+                Ylower=np.dot(self.BasisMatrix(z),mean-factor*std)
+            else:
+                Ylower=np.vstack((Ylower,np.dot(self.BasisMatrix(z),mean-factor*std)))
+        Yupper=np.array([])
+        for z in Z:
+            if z==0:
+                Yupper=np.dot(self.BasisMatrix(z),mean+factor*std)
+            else:
+                Yupper=np.vstack((Yupper,np.dot(self.BasisMatrix(z),mean+factor*std)))
+  
+        plt.figure()
+        for idq, q in enumerate(Qlist):
+            plt.subplot(1,7,idq+1)
+
+            plt.fill_between(Z, Yupper[:,idq], Ylower[:,idq], alpha=0.6)
+            plt.plot(Z,Y[:,idq],'k',LineWidth=1)
+            plt.title(Qlist[idq])
+            plt.ylim(-np.pi,np.pi)
+        plt.suptitle('Mean + '+str(factor)+' std predictions')        
     
     def ConditionedAndStdPredictionPlot(self, wconditioned, factor=1, Qtarget=None, Ztarget=None):
         ''' Produces a nice plot of a conditioned trajectory '''
@@ -365,18 +423,23 @@ class ProMP:
             plt.subplot(1,7,idq+1)
             
             plt.fill_between(Z, Yupper[:,idq], Ylower[:,idq], alpha=0.6)
-            plt.plot(Z,Y[:,idq],'k',LineWidth=1)
-            plt.plot(Z,Ycond[:,idq],'r',LineWidth=1)
-            plt.title(Qlist[idq])
-            if idq==4:
-                plt.legend(('Mean trajectory','Mean trajectory after conditioning to via points'))
+            plt.plot(Z,Y[:,idq],'k',LineWidth=2)
+            plt.plot(Z,Ycond[:,idq],'r',LineWidth=2)
+            plt.title(Qlist[idq], size =16)
+            if idq>0:
+                plt.yticks([])
+            else: 
+                plt.yticks([-np.pi, 0, np.pi], ['$-\pi$', '$0$', '$\pi$'], size = 14)
+            plt.xticks([0, 1], size = 14)
+            if idq==6:
+                plt.legend(('Mean trajectory','Mean trajectory after conditioning to via points'), loc = 4, fontsize = 12)
 
             
             if PlotViaPoints:
                 for idx, qtarg in enumerate(Qtarget):
                     plt.plot(Ztarget[idx], qtarg[idq],'r*')
             plt.ylim(-np.pi,np.pi)
-        plt.suptitle('Mean + '+str(factor)+' std predictions - Conditioned trajectory for N=' + str(self.N) + ' demonstrations')
+        plt.suptitle('Mean + '+str(factor)+' standard deviations - Conditioned trajectory for N=' + str(self.N) + ' demonstrations', size = 16)
     
 
     def Condition_JointSpace(self,Qtarget, Ztarget):
@@ -389,7 +452,7 @@ class ProMP:
         K=self.K
         D=self.D
         N=self.N
-        Ey_des=0.00001*np.eye(D) #Accuracy matrix
+        Ey_des=0.001*np.eye(D) #Accuracy matrix
         Ew=self.estimate_sigma
         Muw=self.estimate_m
 
@@ -722,25 +785,28 @@ Point=np.array([-0.1,-0.1, 0.6])
 def main():
     
     #
-    df_generated, N=robotoolbox.PrepareData('DATAblaaaa.p')
+    df_generated, N=robotoolbox.PrepareData('JointsFinalPresentation_take2.p')
     
-    params = {'D' : 7, 'K' :  5, 'N' : N}
+    params = {'D' : 7, 'K' : 5, 'N' : N}
     RobotSaysHi=ProMP(identifier='RobotSaysHi', TrainingData=df_generated, params=params)
-    #RobotSaysHi.PlotBasisFunctions()
+    RobotSaysHi.PlotBasisFunctions()
     RobotSaysHi.RegularizedLeastSquares() #Choice for l from [1]
     RobotSaysHi.GenerateDemoPlot(xvariable="Times")
-    
-    
-    z=0.3
-    Target=np.array([ 0.467, -0.427,  0.819])
+#    
+    z=1
+    print(FrankaPanda.fk(RobotSaysHi.GeneratePrediction(Z=z)[1]))
+
+    Target=np.array([ 0.711, -0.317,  0.106])
     Q_des=FrankaPanda.ik(z, Target, RobotSaysHi)
     w_des=RobotSaysHi.Condition_JointSpace(Qtarget=[RobotSaysHi.GetStartPoint(w=RobotSaysHi.estimate_m), Q_des], Ztarget=[0,z])        
-    
-    
+#    
+#    
     T, Q= RobotSaysHi.GetJointData(w=w_des)
-    
+#    
     Qp,Qpp=robotoolbox.GetAccel(Q,T)
-    robotoolbox.PlotTrajectory(T, Q)
-    robotoolbox.PlotAccel(T,Qpp)
-#main()
+
+    RobotSaysHi.ExpectationMaximization()
+    
+    
+main()
 
