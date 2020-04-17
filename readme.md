@@ -1,6 +1,5 @@
-Readme
-
-This will be eventually updated
+## robo-cheesecake Readme
+An engine for learning probabilistic movement primitives from demonstrations in joint space, for a Panda robot from Franka Emika. Check `engine.py` for the code.
 
 
     The methods implemented were adapted for two papers by the labs of Jan Peters in Tübingen and Darmstadt.
@@ -23,9 +22,10 @@ This will be eventually updated
         By Paraschos, Daniel, Peters and Neumann
         https://www.ias.informatik.tu-darmstadt.de/uploads/Publications/Paraschos_NIPS_2013a.pdf
         
-    Autors of the code: 
-        Cheesecake Team
-        - Claudia Winklmayr
-        - Sevim Calikstan 
-        - Samuel Bustamante
+        
+Autors of the code: 
+Cheesecake Team
+- Claudia Winklmayr
+- Sevim Calikstan 
+- Samuel Bustamante
         
