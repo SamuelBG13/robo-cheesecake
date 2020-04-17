@@ -1,5 +1,5 @@
 ## robo-cheesecake Readme :cake:
-An engine for learning probabilistic movement primitives from demonstrations in joint space, for a Panda robot from Franka Emika. Check `engine.py` for the code.
+An engine for learning probabilistic movement primitives from demonstrations in joint space. Implemented and tested on a Panda robot from Franka Emika. Check `engine.py` for the code. Released in Open Source with an MIT License.
 
 
     The methods implemented were adapted for two papers by the labs of Jan Peters in Tübingen and Darmstadt.
@@ -24,7 +24,7 @@ An engine for learning probabilistic movement primitives from demonstrations in 
         
         
 Autors of the code: 
-Cheesecake Team
+Cheesecake Team :cake: :robot:
 - Claudia Winklmayr
 - Sevim Calikstan 
 - Samuel Bustamante
