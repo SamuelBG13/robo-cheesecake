@@ -1,4 +1,4 @@
-## robo-cheesecake Readme
+## robo-cheesecake Readme :cake
 An engine for learning probabilistic movement primitives from demonstrations in joint space, for a Panda robot from Franka Emika. Check `engine.py` for the code.
 
 
